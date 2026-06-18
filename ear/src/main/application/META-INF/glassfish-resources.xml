@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE resources PUBLIC "-//Payara.fish//DTD Payara Server 4 Resource Definitions//EN" "https://raw.githubusercontent.com/payara/Payara-Documentation/master/docs/modules/ROOT/pages/Appendix/Schemas/payara-resources_1_7.dtd">
+<resources>
+
+    <admin-object-resource
+            jndi-name="jms/OrderProcessingQueue"
+            res-type="jakarta.jms.Queue"
+            res-adapter="jmsra">
+        <property name="Name" value="OrderProcessingQueue"/>
+        <property name="DestinationDescription" value="Point-to-point queue for order fulfillment - single consumer per message"/>
+    </admin-object-resource>
+
+    <admin-object-resource
+            jndi-name="jms/OrderEventsTopic"
+            res-type="jakarta.jms.Topic"
+            res-adapter="jmsra">
+        <property name="Name" value="OrderEventsTopic"/>
+        <property name="DestinationDescription" value="Pub/sub topic for order events - fanned out to notification and audit subscribers"/>
+    </admin-object-resource>
+
+    <connector-resource
+            jndi-name="jms/TechMartConnectionFactory"
+            pool-name="jms/TechMartConnectionFactoryPool">
+        <property name="ClientId" value="techmart-app"/>
+    </connector-resource>
+
+    <connector-connection-pool
+            name="jms/TechMartConnectionFactoryPool"
+            connection-definition-name="jakarta.jms.ConnectionFactory"
+            resource-adapter-name="jmsra"
+            max-pool-size="32"
+            steady-pool-size="8"
+            max-wait-time-in-millis="10000"
+            pool-resize-quantity="4"
+            idle-timeout-in-seconds="300"
+            is-connection-validation-required="true"
+            transaction-support="XATransaction">
+    </connector-connection-pool>
+
+</resources>
