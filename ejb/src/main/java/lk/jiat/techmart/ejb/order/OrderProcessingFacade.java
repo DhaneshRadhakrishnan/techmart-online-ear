@@ -10,6 +10,7 @@ import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.PersistenceContextType;
 import lk.jiat.techmart.api.InsufficientStockException;
 import lk.jiat.techmart.api.InventoryManagerLocal;
+import lk.jiat.techmart.api.NotificationServiceLocal;
 import lk.jiat.techmart.api.OrderProcessingLocal;
 import lk.jiat.techmart.dto.OrderLineRequestDTO;
 import lk.jiat.techmart.dto.OrderRequestDTO;
@@ -19,6 +20,11 @@ import lk.jiat.techmart.entity.Order;
 import lk.jiat.techmart.entity.OrderItem;
 import lk.jiat.techmart.entity.Product;
 import java.math.BigDecimal;
+import lk.jiat.techmart.api.NotificationServiceLocal;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -34,6 +40,9 @@ public class OrderProcessingFacade implements OrderProcessingLocal {
 
     @EJB
     private InventoryManagerLocal inventoryManager;
+
+    @EJB
+    private NotificationServiceLocal notificationService;
 
     @Override
     public OrderResultDTO placeOrder(OrderRequestDTO request) throws InsufficientStockException {
@@ -77,11 +86,24 @@ public class OrderProcessingFacade implements OrderProcessingLocal {
     }
 
     private void dispatchOrderEvents(Order order) {
+        Future<Boolean> notificationResult = notificationService.sendOrderConfirmation(
+                order.getId(), order.getCustomer().getEmail());
+
+        try {
+            boolean sent = notificationResult.get(2, TimeUnit.SECONDS);
+            if (!sent) {
+                LOGGER.log(Level.WARNING, "Notification dispatch returned false for order {0}", order.getId());
+            }
+        } catch (TimeoutException te) {
+            LOGGER.log(Level.WARNING, "Notification for order {0} timed out after 2s, continuing without blocking checkout", order.getId());
+        } catch (InterruptedException | ExecutionException e) {
+            LOGGER.log(Level.SEVERE, "Notification dispatch failed for order " + order.getId(), e);
+        }
+
         LOGGER.log(Level.FINE,
                 "Order {0} persisted — queue send and topic publish wired in Day 3 (JMS)",
                 order.getId());
     }
-
 
 
 }
