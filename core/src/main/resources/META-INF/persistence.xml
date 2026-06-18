@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<persistence version="2.2"
+             xmlns="https://jakarta.ee/xml/ns/persistence"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xsi:schemaLocation="https://jakarta.ee/xml/ns/persistence
+                                  https://jakarta.ee/xml/ns/persistence/persistence_2_2.xsd">
+
+    <persistence-unit name="TechMartPU" transaction-type="JTA">
+
+        <provider>org.eclipse.persistence.jpa.PersistenceProvider</provider>
+
+        <jta-data-source>jdbc/TechMartPool</jta-data-source>
+
+        <class>lk.jiat.techmart.entity.Product</class>
+        <class>lk.jiat.techmart.entity.Customer</class>
+        <class>lk.jiat.techmart.entity.Order</class>
+        <class>lk.jiat.techmart.entity.OrderItem</class>
+        <class>lk.jiat.techmart.entity.InventoryItem</class>
+
+        <exclude-unlisted-classes>true</exclude-unlisted-classes>
+
+        <properties>
+
+            <property name="eclipselink.ddl-generation" value="create-or-extend-tables"/>
+            <property name="eclipselink.ddl-generation.output-mode" value="database"/>
+
+            <property name="eclipselink.logging.level" value="INFO"/>
+            <property name="eclipselink.logging.level.sql" value="FINE"/>
+            <property name="eclipselink.logging.parameters" value="true"/>
+
+            <property name="eclipselink.jdbc.batch-writing" value="JDBC"/>
+            <property name="eclipselink.jdbc.batch-writing.size" value="50"/>
+
+            <property name="eclipselink.cache.shared.default" value="true"/>
+            <property name="eclipselink.cache.shared.Product" value="true"/>
+            <property name="eclipselink.cache.shared.InventoryItem" value="false"/>
+
+            <property name="eclipselink.persistence-context.flush-mode" value="commit"/>
+
+        </properties>
+
+    </persistence-unit>
+
+</persistence>
