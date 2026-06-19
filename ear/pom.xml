@@ -50,6 +50,24 @@
                     <defaultLibBundleDir>lib</defaultLibBundleDir>
                     <earSourceDirectory>src/main/application</earSourceDirectory>
                     <earSourceIncludes>**/*</earSourceIncludes>
+                    <modules>
+                        <ejbModule>
+                            <groupId>lk.jiat</groupId>
+                            <artifactId>ejb</artifactId>
+                            <bundleFileName>ee-ejb.jar</bundleFileName>
+                        </ejbModule>
+                        <webModule>
+                            <groupId>lk.jiat</groupId>
+                            <artifactId>web</artifactId>
+                            <bundleFileName>ee-web.war</bundleFileName>
+                            <contextRoot>/ee-web</contextRoot>
+                        </webModule>
+                        <jarModule>
+                            <groupId>lk.jiat</groupId>
+                            <artifactId>core</artifactId>
+                            <bundleFileName>core-1.0.jar</bundleFileName>
+                        </jarModule>
+                    </modules>
                 </configuration>
             </plugin>
         </plugins>
