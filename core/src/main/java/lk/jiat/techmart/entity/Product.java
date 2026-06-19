@@ -8,6 +8,8 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
+import jakarta.persistence.NamedQueries;
+import jakarta.persistence.NamedQuery;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import java.io.Serializable;
@@ -18,6 +20,24 @@ import java.time.LocalDateTime;
 @Table(name = "product", indexes = {
         @Index(name = "idx_product_sku", columnList = "sku", unique = true),
         @Index(name = "idx_product_category", columnList = "category")
+})
+@NamedQueries({
+        @NamedQuery(
+                name = "Product.findAllActive",
+                query = "SELECT p FROM Product p WHERE p.status = lk.jiat.techmart.entity.Product$ProductStatus.ACTIVE ORDER BY p.name"
+        ),
+        @NamedQuery(
+                name = "Product.findByCategory",
+                query = "SELECT p FROM Product p WHERE p.category = :category AND p.status = lk.jiat.techmart.entity.Product$ProductStatus.ACTIVE ORDER BY p.name"
+        ),
+        @NamedQuery(
+                name = "Product.findBySku",
+                query = "SELECT p FROM Product p WHERE p.sku = :sku"
+        ),
+        @NamedQuery(
+                name = "Product.searchByName",
+                query = "SELECT p FROM Product p WHERE LOWER(p.name) LIKE LOWER(CONCAT('%', :keyword, '%')) AND p.status = lk.jiat.techmart.entity.Product$ProductStatus.ACTIVE ORDER BY p.name"
+        )
 })
 public class Product implements Serializable {
 

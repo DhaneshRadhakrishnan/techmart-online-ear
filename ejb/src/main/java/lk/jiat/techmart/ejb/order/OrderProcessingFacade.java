@@ -1,10 +1,16 @@
 package lk.jiat.techmart.ejb.order;
 
+import jakarta.annotation.Resource;
 import jakarta.ejb.EJB;
 import jakarta.ejb.Local;
 import jakarta.ejb.Stateless;
 import jakarta.ejb.TransactionAttribute;
 import jakarta.ejb.TransactionAttributeType;
+import jakarta.inject.Inject;
+import jakarta.jms.JMSContext;
+import jakarta.jms.JMSProducer;
+import jakarta.jms.Queue;
+import jakarta.jms.Topic;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.PersistenceContextType;
@@ -19,8 +25,8 @@ import lk.jiat.techmart.entity.Customer;
 import lk.jiat.techmart.entity.Order;
 import lk.jiat.techmart.entity.OrderItem;
 import lk.jiat.techmart.entity.Product;
+
 import java.math.BigDecimal;
-import lk.jiat.techmart.api.NotificationServiceLocal;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -43,6 +49,15 @@ public class OrderProcessingFacade implements OrderProcessingLocal {
 
     @EJB
     private NotificationServiceLocal notificationService;
+
+    @Inject
+    private JMSContext jmsContext;
+
+    @Resource(lookup = "jms/OrderProcessingQueue")
+    private Queue orderProcessingQueue;
+
+    @Resource(lookup = "jms/OrderEventsTopic")
+    private Topic orderEventsTopic;
 
     @Override
     public OrderResultDTO placeOrder(OrderRequestDTO request) throws InsufficientStockException {
@@ -78,6 +93,8 @@ public class OrderProcessingFacade implements OrderProcessingLocal {
         em.flush();
 
         dispatchOrderEvents(order);
+        sendFulfillmentMessage(order);
+        publishOrderEvent(order, "ORDER_CONFIRMED");
 
         LOGGER.log(Level.INFO, "Order {0} placed for customer {1}, total {2}",
                 new Object[]{order.getId(), customer.getId(), total});
@@ -99,11 +116,39 @@ public class OrderProcessingFacade implements OrderProcessingLocal {
         } catch (InterruptedException | ExecutionException e) {
             LOGGER.log(Level.SEVERE, "Notification dispatch failed for order " + order.getId(), e);
         }
-
-        LOGGER.log(Level.FINE,
-                "Order {0} persisted — queue send and topic publish wired in Day 3 (JMS)",
-                order.getId());
     }
 
+    private void sendFulfillmentMessage(Order order) {
+        String payload = buildOrderEventJson(order, "FULFILLMENT_REQUESTED");
 
+        JMSProducer producer = jmsContext.createProducer();
+        producer.setProperty("orderId", order.getId().longValue());
+        producer.setDeliveryMode(jakarta.jms.DeliveryMode.PERSISTENT);
+        producer.send(orderProcessingQueue, payload);
+
+        LOGGER.log(Level.FINE, "Order {0} sent to jms/OrderProcessingQueue for fulfillment", order.getId());
+    }
+
+    private void publishOrderEvent(Order order, String eventType) {
+        String payload = buildOrderEventJson(order, eventType);
+
+        JMSProducer producer = jmsContext.createProducer();
+        producer.setProperty("orderId", order.getId().longValue());
+        producer.setProperty("eventType", eventType);
+        producer.setDeliveryMode(jakarta.jms.DeliveryMode.NON_PERSISTENT);
+        producer.send(orderEventsTopic, payload);
+
+        LOGGER.log(Level.FINE, "Order {0} event {1} published to jms/OrderEventsTopic",
+                new Object[]{order.getId(), eventType});
+    }
+
+    private String buildOrderEventJson(Order order, String eventType) {
+        return "{"
+                + "\"orderId\":" + order.getId() + ","
+                + "\"customerId\":" + order.getCustomer().getId() + ","
+                + "\"status\":\"" + order.getStatus().name() + "\","
+                + "\"totalAmount\":" + order.getTotalAmount() + ","
+                + "\"eventType\":\"" + eventType + "\""
+                + "}";
+    }
 }

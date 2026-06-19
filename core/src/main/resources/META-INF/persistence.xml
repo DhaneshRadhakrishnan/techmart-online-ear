@@ -17,6 +17,7 @@
         <class>lk.jiat.techmart.entity.Order</class>
         <class>lk.jiat.techmart.entity.OrderItem</class>
         <class>lk.jiat.techmart.entity.InventoryItem</class>
+        <class>lk.jiat.techmart.entity.AuditLog</class>
 
         <exclude-unlisted-classes>true</exclude-unlisted-classes>
 
