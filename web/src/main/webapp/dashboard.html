@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>TechMart Online — Performance Dashboard</title>
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; background:#0b1b2b; color:#e7eef5; margin:0; padding:2rem; }
+        h1 { font-size:1.4rem; margin-bottom:.2rem; }
+        .sub { color:#9fb4c9; font-size:.85rem; margin-bottom:1.5rem; }
+        .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:1rem; margin-bottom:2rem; }
+        .card { background:#10243e; border:1px solid #27445e; border-radius:6px; padding:1rem 1.2rem; }
+        .card h3 { font-size:.7rem; text-transform:uppercase; letter-spacing:.05em; color:#9fb4c9; margin:0 0 .5rem; }
+        .card .val { font-size:1.6rem; font-weight:600; color:#6fb3e0; }
+        .card .unit { font-size:.8rem; color:#9fb4c9; margin-left:.3rem; }
+        table { width:100%; border-collapse:collapse; background:#10243e; border:1px solid #27445e; font-size:.85rem; }
+        th, td { padding:.5rem .7rem; border-bottom:1px solid #27445e; text-align:left; }
+        th { color:#9fb4c9; text-transform:uppercase; font-size:.65rem; letter-spacing:.05em; }
+        .status { font-size:.75rem; padding:.25rem .6rem; border-radius:3px; }
+        .ok { background:#0f2e22; color:#52c794; }
+        .err { background:#3a1212; color:#e35858; }
+        .section { margin-bottom:2rem; }
+        .ts { color:#9fb4c9; font-size:.75rem; }
+    </style>
+</head>
+<body>
+<h1>TechMart Online — Performance Dashboard</h1>
+<div class="sub">Live JMX metrics + JNDI lookup benchmark · refreshing every 3s · <span id="connStatus" class="status ok">connected</span></div>
+
+<div class="section">
+    <div class="grid" id="memGrid"></div>
+</div>
+
+<div class="section">
+    <h3 style="color:#9fb4c9; font-size:.8rem; text-transform:uppercase; letter-spacing:.05em;">JNDI Lookup vs. Injected EJB Call (last sample, 100 iterations each)</h3>
+    <table id="jndiTable">
+        <thead>
+        <tr><th>Target</th><th>Avg (µs)</th><th>Min (µs)</th><th>Max (µs)</th><th>Success</th></tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+    <div class="ts" id="jndiTs"></div>
+</div>
+
+<script>
+    const memGrid = document.getElementById('memGrid');
+    const jndiBody = document.querySelector('#jndiTable tbody');
+    const jndiTs = document.getElementById('jndiTs');
+    const connStatus = document.getElementById('connStatus');
+
+    function card(label, value, unit) {
+        return '<div class="card"><h3>' + label + '</h3><span class="val">' + value + '</span><span class="unit">' + unit + '</span></div>';
+    }
+
+    async function pollDashboard() {
+        try {
+            const res = await fetch('dashboard', { cache: 'no-store' });
+            const d = await res.json();
+            memGrid.innerHTML =
+                card('Heap Used', d.heapUsedMB, 'MB') +
+                card('Heap Committed', d.heapCommittedMB, 'MB') +
+                card('Heap Max', d.heapMaxMB, 'MB') +
+                card('Non-Heap Used', d.nonHeapUsedMB, 'MB') +
+                card('Live Threads', d.liveThreadCount, '') +
+                card('Peak Threads', d.peakThreadCount, '') +
+                card('Daemon Threads', d.daemonThreadCount, '') +
+                card('Inventory Cache', d.inventoryCacheSize, 'SKUs');
+            connStatus.textContent = 'connected';
+            connStatus.className = 'status ok';
+        } catch (e) {
+            connStatus.textContent = 'disconnected';
+            connStatus.className = 'status err';
+        }
+    }
+
+    function jndiRow(label, sample) {
+        if (!sample) return '';
+        const avg = sample.avgElapsedMicros !== null ? sample.avgElapsedMicros : '—';
+        const min = sample.minElapsedMicros !== null ? sample.minElapsedMicros : '—';
+        const max = sample.maxElapsedMicros !== null ? sample.maxElapsedMicros : '—';
+        return '<tr><td>' + label + '</td><td>' + avg + '</td><td>' + min + '</td><td>' + max + '</td><td>' +
+            sample.successCount + '/' + sample.iterations + '</td></tr>';
+    }
+
+    async function pollJndi() {
+        try {
+            const res = await fetch('jndi', { cache: 'no-store' });
+            const d = await res.json();
+            jndiBody.innerHTML =
+                jndiRow('jdbc/TechMartPool (InitialContext.lookup)', d.datasourceLookup) +
+                jndiRow('jms/TechMartConnectionFactory (InitialContext.lookup)', d.jmsConnectionFactoryLookup) +
+                jndiRow('InventoryManagerLocal (@EJB injected)', d.injectedEjbCallBaseline);
+            jndiTs.textContent = 'Last sampled: ' + new Date().toLocaleTimeString();
+        } catch (e) {
+            jndiTs.textContent = 'JNDI sample unavailable';
+        }
+    }
+
+    pollDashboard();
+    pollJndi();
+    setInterval(pollDashboard, 3000);
+    setInterval(pollJndi, 10000);
+</script>
+</body>
+</html>
