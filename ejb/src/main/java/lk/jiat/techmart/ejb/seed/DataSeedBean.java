@@ -17,7 +17,6 @@ import java.util.logging.Logger;
 
 @Singleton
 @Startup
-@DependsOn("InventoryManagerBean")
 public class DataSeedBean {
 
     private static final Logger LOGGER = Logger.getLogger(DataSeedBean.class.getName());

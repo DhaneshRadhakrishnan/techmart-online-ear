@@ -2,13 +2,7 @@ package lk.jiat.techmart.ejb.inventory;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
-import jakarta.ejb.ConcurrencyManagement;
-import jakarta.ejb.ConcurrencyManagementType;
-import jakarta.ejb.Local;
-import jakarta.ejb.Lock;
-import jakarta.ejb.LockType;
-import jakarta.ejb.Singleton;
-import jakarta.ejb.Startup;
+import jakarta.ejb.*;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.PersistenceContextType;
@@ -26,6 +20,7 @@ import java.util.stream.Collectors;
 
 @Singleton
 @Startup
+@DependsOn("DataSeedBean")
 @Local(InventoryManagerLocal.class)
 @ConcurrencyManagement(ConcurrencyManagementType.CONTAINER)
 public class InventoryManagerBean implements InventoryManagerLocal {
