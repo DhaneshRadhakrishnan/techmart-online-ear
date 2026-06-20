@@ -1,6 +1,7 @@
 package lk.jiat.techmart.web.rest;
 
 import jakarta.ejb.EJB;
+import jakarta.enterprise.context.RequestScoped;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
@@ -12,6 +13,7 @@ import lk.jiat.techmart.dto.ProductDTO;
 
 import java.util.List;
 
+@RequestScoped
 @Path("/products")
 public class ProductResource {
 

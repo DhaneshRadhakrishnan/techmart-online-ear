@@ -1,6 +1,7 @@
 package lk.jiat.techmart.web.rest;
 
 import jakarta.ejb.EJB;
+import jakarta.enterprise.context.RequestScoped;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
@@ -12,6 +13,7 @@ import lk.jiat.techmart.api.OrderProcessingLocal;
 import lk.jiat.techmart.dto.OrderRequestDTO;
 import lk.jiat.techmart.dto.OrderResultDTO;
 
+@RequestScoped
 @Path("/orders")
 public class OrderResource {
 

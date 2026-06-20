@@ -21,7 +21,7 @@ import java.util.logging.Logger;
         @ActivationConfigProperty(propertyName = "destinationLookup", propertyValue = "jms/OrderEventsTopic"),
         @ActivationConfigProperty(propertyName = "destinationType", propertyValue = "jakarta.jms.Topic"),
         @ActivationConfigProperty(propertyName = "subscriptionDurability", propertyValue = "Durable"),
-        @ActivationConfigProperty(propertyName = "clientId", propertyValue = "techmart-app"),
+        @ActivationConfigProperty(propertyName = "clientId", propertyValue = "techmart-app-audit"),
         @ActivationConfigProperty(propertyName = "subscriptionName", propertyValue = "AuditLogSub"),
         @ActivationConfigProperty(propertyName = "acknowledgeMode", propertyValue = "Auto-acknowledge")
 })
