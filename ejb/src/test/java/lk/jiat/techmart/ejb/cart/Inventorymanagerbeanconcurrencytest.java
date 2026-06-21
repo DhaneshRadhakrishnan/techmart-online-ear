@@ -1,4 +1,4 @@
-package java.lk.jiat.techmart.ejb.cart;
+package lk.jiat.techmart.ejb.cart;
 
 import lk.jiat.techmart.api.EmptyCartException;
 import lk.jiat.techmart.api.InventoryManagerLocal;
