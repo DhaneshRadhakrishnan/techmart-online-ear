@@ -1,9 +1,10 @@
-package lk.jiat.techmart.ejb.inventory;
+package java.lk.jiat.techmart.ejb.inventory;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
 import lk.jiat.techmart.api.InsufficientStockException;
 import lk.jiat.techmart.dto.InventoryStatusDTO;
+import lk.jiat.techmart.ejb.inventory.InventoryManagerBean;
 import lk.jiat.techmart.entity.InventoryItem;
 import lk.jiat.techmart.entity.Product;
 import org.junit.jupiter.api.BeforeEach;

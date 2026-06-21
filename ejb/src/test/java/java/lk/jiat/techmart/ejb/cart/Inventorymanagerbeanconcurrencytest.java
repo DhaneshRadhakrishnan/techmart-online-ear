@@ -1,4 +1,4 @@
-package lk.jiat.techmart.ejb.cart;
+package java.lk.jiat.techmart.ejb.cart;
 
 import lk.jiat.techmart.api.EmptyCartException;
 import lk.jiat.techmart.api.InventoryManagerLocal;
@@ -6,6 +6,7 @@ import lk.jiat.techmart.api.ProductCatalogLocal;
 import lk.jiat.techmart.dto.CartSummaryDTO;
 import lk.jiat.techmart.dto.InventoryStatusDTO;
 import lk.jiat.techmart.dto.ProductDTO;
+import lk.jiat.techmart.ejb.cart.ShoppingCartBean;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
