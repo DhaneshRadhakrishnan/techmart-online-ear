@@ -28,15 +28,18 @@ public class OrderResource {
         try {
             OrderResultDTO result = orderProcessing.placeOrder(request);
             return Response.status(Response.Status.CREATED).entity(result).build();
+        } catch (EJBTransactionRolledbackException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof InsufficientStockException) {
+                InsufficientStockException ise = (InsufficientStockException) cause;
+                return Response.status(Response.Status.CONFLICT)
+                        .entity(new ErrorPayload(ise.getMessage())).build();
+            }
+            return Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+                    .entity(new ErrorPayload("Transaction failed: " + e.getMessage())).build();
         } catch (InsufficientStockException e) {
             return Response.status(Response.Status.CONFLICT)
                     .entity(new ErrorPayload(e.getMessage())).build();
-        } catch (EJBTransactionRolledbackException e) {
-            if (e.getCause() instanceof InsufficientStockException) {
-                return Response.status(Response.Status.CONFLICT)
-                        .entity(new ErrorPayload(e.getCause().getMessage())).build();
-            }
-            throw e;
         } catch (IllegalArgumentException e) {
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity(new ErrorPayload(e.getMessage())).build();
