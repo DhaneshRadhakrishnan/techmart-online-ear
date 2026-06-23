@@ -4,6 +4,7 @@ import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import jakarta.ejb.*;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.PersistenceContextType;
 import lk.jiat.techmart.api.InsufficientStockException;
@@ -16,7 +17,6 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 
 @Singleton
 @Startup
@@ -30,7 +30,8 @@ public class InventoryManagerBean implements InventoryManagerLocal {
     @PersistenceContext(unitName = "TechMartPU", type = PersistenceContextType.TRANSACTION)
     private EntityManager em;
 
-    private final Map<String, InventoryItem> stockCache = new ConcurrentHashMap<>();
+    private final Map<String, Long> skuToIdCache = new ConcurrentHashMap<>();
+    private final Map<String, InventoryStatusDTO> stockCache = new ConcurrentHashMap<>();
 
     @PostConstruct
     public void initializeCache() {
@@ -38,7 +39,9 @@ public class InventoryManagerBean implements InventoryManagerLocal {
                         "SELECT i FROM InventoryItem i JOIN FETCH i.product", InventoryItem.class)
                 .getResultList();
         for (InventoryItem item : items) {
-            stockCache.put(item.getProduct().getSku(), item);
+            String sku = item.getProduct().getSku();
+            skuToIdCache.put(sku, item.getId());
+            stockCache.put(sku, toDTO(item));
         }
         LOGGER.log(Level.INFO, "InventoryManagerBean cache primed with {0} SKUs", stockCache.size());
     }
@@ -47,16 +50,13 @@ public class InventoryManagerBean implements InventoryManagerLocal {
     public void flushCache() {
         LOGGER.log(Level.INFO, "InventoryManagerBean shutting down, cache held {0} SKUs", stockCache.size());
         stockCache.clear();
+        skuToIdCache.clear();
     }
 
     @Override
     @Lock(LockType.READ)
     public InventoryStatusDTO checkStock(String sku) {
-        InventoryItem item = stockCache.get(sku);
-        if (item == null) {
-            return null;
-        }
-        return toDTO(item);
+        return stockCache.get(sku);
     }
 
     @Override
@@ -64,9 +64,9 @@ public class InventoryManagerBean implements InventoryManagerLocal {
     public List<InventoryStatusDTO> checkStockBulk(List<String> skus) {
         List<InventoryStatusDTO> results = new ArrayList<>(skus.size());
         for (String sku : skus) {
-            InventoryItem item = stockCache.get(sku);
-            if (item != null) {
-                results.add(toDTO(item));
+            InventoryStatusDTO dto = stockCache.get(sku);
+            if (dto != null) {
+                results.add(dto);
             }
         }
         return results;
@@ -75,39 +75,57 @@ public class InventoryManagerBean implements InventoryManagerLocal {
     @Override
     @Lock(LockType.WRITE)
     public void reserveStock(String sku, int quantity) throws InsufficientStockException {
-        InventoryItem item = stockCache.get(sku);
-        if (item == null) {
+        Long id = skuToIdCache.get(sku);
+        if (id == null) {
             throw new InsufficientStockException(sku, quantity, 0);
         }
-        int available = item.getAvailableQuantity();
+
+        InventoryItem managed = em.find(InventoryItem.class, id, LockModeType.PESSIMISTIC_WRITE);
+        if (managed == null) {
+            throw new InsufficientStockException(sku, quantity, 0);
+        }
+
+        int available = managed.getAvailableQuantity();
         if (available < quantity) {
             throw new InsufficientStockException(sku, quantity, available);
         }
-        item.setQuantityReserved(item.getQuantityReserved() + quantity);
-        em.merge(item);
+
+        managed.setQuantityReserved(managed.getQuantityReserved() + quantity);
+        stockCache.put(sku, toDTO(managed));
     }
 
     @Override
     @Lock(LockType.WRITE)
     public void releaseReservation(String sku, int quantity) {
-        InventoryItem item = stockCache.get(sku);
-        if (item == null) {
+        Long id = skuToIdCache.get(sku);
+        if (id == null) {
             return;
         }
-        int newReserved = Math.max(0, item.getQuantityReserved() - quantity);
-        item.setQuantityReserved(newReserved);
-        em.merge(item);
+
+        InventoryItem managed = em.find(InventoryItem.class, id, LockModeType.PESSIMISTIC_WRITE);
+        if (managed == null) {
+            return;
+        }
+
+        managed.setQuantityReserved(Math.max(0, managed.getQuantityReserved() - quantity));
+        stockCache.put(sku, toDTO(managed));
     }
 
     @Override
     @Lock(LockType.WRITE)
     public void restock(String sku, int quantity) {
-        InventoryItem item = stockCache.get(sku);
-        if (item == null) {
+        Long id = skuToIdCache.get(sku);
+        if (id == null) {
             return;
         }
-        item.setQuantityOnHand(item.getQuantityOnHand() + quantity);
-        em.merge(item);
+
+        InventoryItem managed = em.find(InventoryItem.class, id, LockModeType.PESSIMISTIC_WRITE);
+        if (managed == null) {
+            return;
+        }
+
+        managed.setQuantityOnHand(managed.getQuantityOnHand() + quantity);
+        stockCache.put(sku, toDTO(managed));
     }
 
     @Override

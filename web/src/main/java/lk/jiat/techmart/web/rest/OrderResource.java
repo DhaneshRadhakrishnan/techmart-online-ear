@@ -1,6 +1,7 @@
 package lk.jiat.techmart.web.rest;
 
 import jakarta.ejb.EJB;
+import jakarta.ejb.EJBTransactionRolledbackException;
 import jakarta.enterprise.context.RequestScoped;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.POST;
@@ -30,6 +31,12 @@ public class OrderResource {
         } catch (InsufficientStockException e) {
             return Response.status(Response.Status.CONFLICT)
                     .entity(new ErrorPayload(e.getMessage())).build();
+        } catch (EJBTransactionRolledbackException e) {
+            if (e.getCause() instanceof InsufficientStockException) {
+                return Response.status(Response.Status.CONFLICT)
+                        .entity(new ErrorPayload(e.getCause().getMessage())).build();
+            }
+            throw e;
         } catch (IllegalArgumentException e) {
             return Response.status(Response.Status.BAD_REQUEST)
                     .entity(new ErrorPayload(e.getMessage())).build();
