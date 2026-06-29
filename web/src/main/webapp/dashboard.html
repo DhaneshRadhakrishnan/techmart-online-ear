@@ -3,103 +3,708 @@
 <head>
     <meta charset="UTF-8">
     <title>TechMart Online — Performance Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
     <style>
-        body { font-family: 'Segoe UI', Arial, sans-serif; background:#0b1b2b; color:#e7eef5; margin:0; padding:2rem; }
-        h1 { font-size:1.4rem; margin-bottom:.2rem; }
-        .sub { color:#9fb4c9; font-size:.85rem; margin-bottom:1.5rem; }
-        .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:1rem; margin-bottom:2rem; }
-        .card { background:#10243e; border:1px solid #27445e; border-radius:6px; padding:1rem 1.2rem; }
-        .card h3 { font-size:.7rem; text-transform:uppercase; letter-spacing:.05em; color:#9fb4c9; margin:0 0 .5rem; }
-        .card .val { font-size:1.6rem; font-weight:600; color:#6fb3e0; }
-        .card .unit { font-size:.8rem; color:#9fb4c9; margin-left:.3rem; }
-        table { width:100%; border-collapse:collapse; background:#10243e; border:1px solid #27445e; font-size:.85rem; }
-        th, td { padding:.5rem .7rem; border-bottom:1px solid #27445e; text-align:left; }
-        th { color:#9fb4c9; text-transform:uppercase; font-size:.65rem; letter-spacing:.05em; }
-        .status { font-size:.75rem; padding:.25rem .6rem; border-radius:3px; }
-        .ok { background:#0f2e22; color:#52c794; }
-        .err { background:#3a1212; color:#e35858; }
-        .section { margin-bottom:2rem; }
-        .ts { color:#9fb4c9; font-size:.75rem; }
+        :root {
+            --bg:       #080f1a;
+            --surface:  #0d1e33;
+            --border:   #1a3050;
+            --border2:  #1f3d60;
+            --ink:      #d6e8f7;
+            --ink-soft: #7a9bbe;
+            --blue:     #4da6e8;
+            --blue-dim: #2a5c85;
+            --green:    #34d399;
+            --amber:    #fbbf24;
+            --red:      #f87171;
+            --mono:     'Courier New', monospace;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background: var(--bg);
+            color: var(--ink);
+            font-family: -apple-system, 'Segoe UI', sans-serif;
+            font-size: 14px;
+            line-height: 1.5;
+            min-height: 100vh;
+            padding: 0;
+        }
+
+        /* ── TOP BAR ── */
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: .85rem 1.5rem;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: .65rem;
+        }
+        .brand-icon {
+            width: 28px;
+            height: 28px;
+            background: linear-gradient(135deg, var(--blue), var(--green));
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+        }
+        .brand-text { font-size: 1rem; font-weight: 600; letter-spacing: -.01em; }
+        .brand-sub  { font-size: .72rem; color: var(--ink-soft); margin-left: .4rem; }
+
+        .header-right { display: flex; align-items: center; gap: 1rem; }
+        .conn-badge {
+            display: flex;
+            align-items: center;
+            gap: .4rem;
+            font-size: .72rem;
+            font-family: var(--mono);
+            color: var(--ink-soft);
+        }
+        .conn-dot {
+            width: 7px; height: 7px;
+            border-radius: 50%;
+            background: var(--green);
+            box-shadow: 0 0 6px var(--green);
+            transition: background .3s, box-shadow .3s;
+        }
+        .conn-dot.err { background: var(--red); box-shadow: 0 0 6px var(--red); }
+        .last-update { font-size: .7rem; color: var(--ink-soft); font-family: var(--mono); }
+
+        /* ── LAYOUT ── */
+        main { padding: 1.5rem; max-width: 1440px; margin: 0 auto; }
+
+        .section-label {
+            font-size: .65rem;
+            font-family: var(--mono);
+            text-transform: uppercase;
+            letter-spacing: .1em;
+            color: var(--ink-soft);
+            margin-bottom: .75rem;
+            display: flex;
+            align-items: center;
+            gap: .6rem;
+        }
+        .section-label::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        /* ── KPI STRIP ── */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: .75rem;
+            margin-bottom: 1.5rem;
+        }
+        @media (max-width: 900px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 500px) { .kpi-grid { grid-template-columns: 1fr; } }
+
+        .kpi {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem 1.1rem;
+            display: flex;
+            flex-direction: column;
+            gap: .3rem;
+            transition: border-color .2s;
+        }
+        .kpi:hover { border-color: var(--border2); }
+        .kpi-label {
+            font-size: .65rem;
+            font-family: var(--mono);
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            color: var(--ink-soft);
+        }
+        .kpi-val {
+            font-size: 1.75rem;
+            font-weight: 700;
+            letter-spacing: -.02em;
+            line-height: 1;
+            color: var(--blue);
+        }
+        .kpi-val.green { color: var(--green); }
+        .kpi-val.amber { color: var(--amber); }
+        .kpi-val.red   { color: var(--red);   }
+        .kpi-unit { font-size: .7rem; color: var(--ink-soft); }
+        .kpi-delta {
+            font-size: .7rem;
+            font-family: var(--mono);
+            color: var(--ink-soft);
+            margin-top: .1rem;
+        }
+
+        /* ── CHART GRID ── */
+        .chart-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: .75rem;
+            margin-bottom: 1.5rem;
+        }
+        .chart-grid-3 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: .75rem;
+            margin-bottom: 1.5rem;
+        }
+        @media (max-width: 1100px) {
+            .chart-grid   { grid-template-columns: 1fr; }
+            .chart-grid-3 { grid-template-columns: 1fr 1fr; }
+        }
+        @media (max-width: 600px) { .chart-grid-3 { grid-template-columns: 1fr; } }
+
+        .chart-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem 1.2rem 1.2rem;
+        }
+        .chart-card-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: .85rem;
+        }
+        .chart-title { font-size: .78rem; font-weight: 600; color: var(--ink); }
+        .chart-sub   { font-size: .65rem; color: var(--ink-soft); font-family: var(--mono); }
+        .chart-wrap  { position: relative; }
+
+        /* ── JNDI TABLE ── */
+        .jndi-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem 1.2rem;
+            margin-bottom: 1.5rem;
+            overflow-x: auto;
+        }
+        table { width: 100%; border-collapse: collapse; font-size: .8rem; }
+        th {
+            font-family: var(--mono);
+            font-size: .62rem;
+            text-transform: uppercase;
+            letter-spacing: .07em;
+            color: var(--ink-soft);
+            padding: .45rem .6rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        td { padding: .5rem .6rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+        tr:last-child td { border-bottom: none; }
+        .td-mono { font-family: var(--mono); }
+        .bar-wrap { display: flex; align-items: center; gap: .5rem; }
+        .inline-bar {
+            flex: 1;
+            height: 6px;
+            background: var(--border);
+            border-radius: 9999px;
+            overflow: hidden;
+            max-width: 120px;
+        }
+        .inline-fill {
+            height: 100%;
+            border-radius: 9999px;
+            transition: width .4s ease;
+        }
+        .fill-blue  { background: var(--blue); }
+        .fill-green { background: var(--green); }
+        .fill-amber { background: var(--amber); }
+
+        /* ── FOOTER LOG ── */
+        .log-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: .8rem 1rem;
+        }
+        #eventLog {
+            font-family: var(--mono);
+            font-size: .7rem;
+            color: var(--ink-soft);
+            max-height: 90px;
+            overflow-y: auto;
+            line-height: 1.7;
+        }
+        #eventLog .ts   { color: var(--blue-dim); margin-right: .5rem; }
+        #eventLog .ok   { color: var(--green); }
+        #eventLog .warn { color: var(--amber); }
     </style>
 </head>
 <body>
-<h1>TechMart Online — Performance Dashboard</h1>
-<div class="sub">Live JMX metrics + JNDI lookup benchmark · refreshing every 3s · <span id="connStatus" class="status ok">connected</span></div>
 
-<div class="section">
-    <div class="grid" id="memGrid"></div>
-</div>
+<header>
+    <div class="brand">
+        <div class="brand-icon">⚡</div>
+        <span class="brand-text">TechMart Online</span>
+        <span class="brand-sub">Performance Dashboard</span>
+    </div>
+    <div class="header-right">
+        <div class="conn-badge">
+            <div class="conn-dot" id="connDot"></div>
+            <span id="connLabel">connecting…</span>
+        </div>
+        <div class="last-update" id="lastUpdate">—</div>
+    </div>
+</header>
 
-<img src="../../../../../../../../Pictures/Screenshots/Screenshot 2026-06-21 130219.png" height="1020" width="1920"/>
-<div class="section">
-    <h3 style="color:#9fb4c9; font-size:.8rem; text-transform:uppercase; letter-spacing:.05em;">JNDI Lookup vs. Injected EJB Call (last sample, 100 iterations each)</h3>
-    <table id="jndiTable">
-        <thead>
-        <tr><th>Target</th><th>Avg (µs)</th><th>Min (µs)</th><th>Max (µs)</th><th>Success</th></tr>
-        </thead>
-        <tbody></tbody>
-    </table>
-    <div class="ts" id="jndiTs"></div>
-</div>
+<main>
+
+    <!-- KPI Strip -->
+    <div class="section-label">JVM snapshot</div>
+    <div class="kpi-grid">
+        <div class="kpi">
+            <div class="kpi-label">Heap Used</div>
+            <div class="kpi-val" id="kHeap">—</div>
+            <div class="kpi-unit">MB</div>
+            <div class="kpi-delta" id="kHeapDelta">—</div>
+        </div>
+        <div class="kpi">
+            <div class="kpi-label">Heap Utilisation</div>
+            <div class="kpi-val" id="kHeapPct">—</div>
+            <div class="kpi-unit">% of max</div>
+            <div class="kpi-delta" id="kHeapPctSub">—</div>
+        </div>
+        <div class="kpi">
+            <div class="kpi-label">Live Threads</div>
+            <div class="kpi-val green" id="kThreads">—</div>
+            <div class="kpi-unit">active</div>
+            <div class="kpi-delta" id="kThreadsSub">peak —</div>
+        </div>
+        <div class="kpi">
+            <div class="kpi-label">Inventory Cache</div>
+            <div class="kpi-val amber" id="kCache">—</div>
+            <div class="kpi-unit">SKUs warm</div>
+            <div class="kpi-delta" id="kCacheSub">singleton in-memory</div>
+        </div>
+    </div>
+
+    <!-- Row 1: Heap timeline + Heap doughnut -->
+    <div class="section-label">memory</div>
+    <div class="chart-grid">
+        <div class="chart-card">
+            <div class="chart-card-head">
+                <span class="chart-title">Heap Usage over Time</span>
+                <span class="chart-sub">last 60 samples · 3 s interval</span>
+            </div>
+            <div class="chart-wrap" style="height:200px">
+                <canvas id="heapChart"></canvas>
+            </div>
+        </div>
+        <div class="chart-card">
+            <div class="chart-card-head">
+                <span class="chart-title">Heap Breakdown</span>
+                <span class="chart-sub">current snapshot</span>
+            </div>
+            <div class="chart-wrap" style="height:200px">
+                <canvas id="heapDonut"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Row 2: Threads timeline + Non-heap + Cache gauge -->
+    <div class="section-label">threads &amp; cache</div>
+    <div class="chart-grid-3">
+        <div class="chart-card">
+            <div class="chart-card-head">
+                <span class="chart-title">Thread Count History</span>
+                <span class="chart-sub">live vs daemon vs peak</span>
+            </div>
+            <div class="chart-wrap" style="height:170px">
+                <canvas id="threadChart"></canvas>
+            </div>
+        </div>
+        <div class="chart-card">
+            <div class="chart-card-head">
+                <span class="chart-title">Non-Heap Memory</span>
+                <span class="chart-sub">metaspace / class data</span>
+            </div>
+            <div class="chart-wrap" style="height:170px">
+                <canvas id="nonHeapChart"></canvas>
+            </div>
+        </div>
+        <div class="chart-card">
+            <div class="chart-card-head">
+                <span class="chart-title">Thread Mix</span>
+                <span class="chart-sub">current composition</span>
+            </div>
+            <div class="chart-wrap" style="height:170px">
+                <canvas id="threadDonut"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- JNDI benchmark table -->
+    <div class="section-label">JNDI lookup vs. @EJB injection benchmark</div>
+    <div class="jndi-card">
+        <div class="chart-card-head">
+            <span class="chart-title">Latency Comparison — 100 iterations each</span>
+            <span class="chart-sub" id="jndiTs">sampling…</span>
+        </div>
+        <table>
+            <thead>
+            <tr>
+                <th>Lookup target</th>
+                <th>Mechanism</th>
+                <th>Avg (µs)</th>
+                <th>Min (µs)</th>
+                <th>Max (µs)</th>
+                <th>Success</th>
+                <th>Relative cost</th>
+            </tr>
+            </thead>
+            <tbody id="jndiBody"></tbody>
+        </table>
+    </div>
+
+    <!-- JNDI bar chart -->
+    <div class="section-label">lookup latency visualised</div>
+    <div class="chart-card" style="margin-bottom:1.5rem">
+        <div class="chart-card-head">
+            <span class="chart-title">Average Lookup Latency (µs) — JNDI vs Injected</span>
+            <span class="chart-sub">lower is better</span>
+        </div>
+        <div class="chart-wrap" style="height:160px">
+            <canvas id="jndiBarChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Event log -->
+    <div class="section-label">poll log</div>
+    <div class="log-card">
+        <div id="eventLog"></div>
+    </div>
+
+</main>
 
 <script>
-    const memGrid = document.getElementById('memGrid');
-    const jndiBody = document.querySelector('#jndiTable tbody');
-    const jndiTs = document.getElementById('jndiTs');
-    const connStatus = document.getElementById('connStatus');
+    /* ─────────────────────────────────────────────
+       CONFIGURATION
+    ───────────────────────────────────────────── */
+    const DASH_URL  = 'diagnostic/dashboard';
+    const JNDI_URL  = 'diagnostic/jndi';
+    const DASH_MS   = 3000;
+    const JNDI_MS   = 10000;
+    const MAX_HIST  = 60;
 
-    function card(label, value, unit) {
-        return '<div class="card"><h3>' + label + '</h3><span class="val">' + value + '</span><span class="unit">' + unit + '</span></div>';
+    /* ─────────────────────────────────────────────
+       HISTORY BUFFERS
+    ───────────────────────────────────────────── */
+    const labels       = [];
+    const heapUsed     = [];
+    const heapCommit   = [];
+    const heapMax      = [];
+    const nonHeapUsed  = [];
+    const liveThreads  = [];
+    const daemonThreads= [];
+    const peakThreads  = [];
+
+    function push(arr, val) {
+        arr.push(val);
+        if (arr.length > MAX_HIST) arr.shift();
     }
 
+    /* ─────────────────────────────────────────────
+       CHART DEFAULTS
+    ───────────────────────────────────────────── */
+    Chart.defaults.color = '#7a9bbe';
+    Chart.defaults.font.family = "'Courier New', monospace";
+    Chart.defaults.font.size = 11;
+
+    const gridColor  = 'rgba(26,48,80,0.8)';
+    const tickColor  = '#7a9bbe';
+
+    function lineOpts(yLabel) {
+        return {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: { duration: 250 },
+            plugins: { legend: { display: true, labels: { boxWidth: 10, padding: 12 } } },
+            scales: {
+                x: { display: false },
+                y: {
+                    grid: { color: gridColor },
+                    ticks: { color: tickColor },
+                    title: { display: !!yLabel, text: yLabel, color: tickColor, font: { size: 10 } }
+                }
+            }
+        };
+    }
+
+    /* ── Heap Timeline ── */
+    const heapCtx = document.getElementById('heapChart').getContext('2d');
+    const heapChart = new Chart(heapCtx, {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [
+                { label: 'Used MB',      data: heapUsed,   borderColor: '#4da6e8', backgroundColor: 'rgba(77,166,232,.08)', fill: true,  tension: .35, pointRadius: 0, borderWidth: 2 },
+                { label: 'Committed MB', data: heapCommit, borderColor: '#1f3d60', backgroundColor: 'transparent',          fill: false, tension: .35, pointRadius: 0, borderWidth: 1, borderDash: [4,3] },
+            ]
+        },
+        options: lineOpts('MB')
+    });
+
+    /* ── Heap Doughnut ── */
+    const hdCtx = document.getElementById('heapDonut').getContext('2d');
+    const heapDonut = new Chart(hdCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Used', 'Free (committed)', 'Uncommitted'],
+            datasets: [{ data: [0, 0, 0], backgroundColor: ['#4da6e8','#1a3050','#0d1e33'], borderWidth: 0, hoverOffset: 6 }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: { duration: 400 },
+            cutout: '70%',
+            plugins: {
+                legend: { position: 'right', labels: { boxWidth: 10, padding: 10, font: { size: 10 } } }
+            }
+        }
+    });
+
+    /* ── Thread Timeline ── */
+    const thrCtx = document.getElementById('threadChart').getContext('2d');
+    const threadChart = new Chart(thrCtx, {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [
+                { label: 'Live',   data: liveThreads,   borderColor: '#34d399', backgroundColor: 'rgba(52,211,153,.07)', fill: true,  tension: .35, pointRadius: 0, borderWidth: 2 },
+                { label: 'Daemon', data: daemonThreads,  borderColor: '#fbbf24', backgroundColor: 'transparent',          fill: false, tension: .35, pointRadius: 0, borderWidth: 1.5 },
+                { label: 'Peak',   data: peakThreads,    borderColor: '#f87171', backgroundColor: 'transparent',          fill: false, tension: .35, pointRadius: 0, borderWidth: 1, borderDash: [3,3] },
+            ]
+        },
+        options: lineOpts('threads')
+    });
+
+    /* ── Non-heap Timeline ── */
+    const nhCtx = document.getElementById('nonHeapChart').getContext('2d');
+    const nonHeapChart = new Chart(nhCtx, {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [
+                { label: 'Non-heap MB', data: nonHeapUsed, borderColor: '#a78bfa', backgroundColor: 'rgba(167,139,250,.07)', fill: true, tension: .35, pointRadius: 0, borderWidth: 2 }
+            ]
+        },
+        options: lineOpts('MB')
+    });
+
+    /* ── Thread Doughnut ── */
+    const tdCtx = document.getElementById('threadDonut').getContext('2d');
+    const threadDonut = new Chart(tdCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Daemon', 'Non-daemon'],
+            datasets: [{ data: [0, 0], backgroundColor: ['#fbbf24','#34d399'], borderWidth: 0, hoverOffset: 6 }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: { duration: 400 },
+            cutout: '68%',
+            plugins: { legend: { position: 'right', labels: { boxWidth: 10, padding: 10, font: { size: 10 } } } }
+        }
+    });
+
+    /* ── JNDI Bar Chart ── */
+    const jbCtx = document.getElementById('jndiBarChart').getContext('2d');
+    const jndiBarChart = new Chart(jbCtx, {
+        type: 'bar',
+        data: {
+            labels: ['jdbc/TechMartPool\n(InitialContext)', 'jms/TechMartCF\n(InitialContext)', 'InventoryManagerLocal\n(@EJB injected)'],
+            datasets: [{
+                label: 'Avg latency (µs)',
+                data: [0, 0, 0],
+                backgroundColor: ['#2a5c85','#1f4d73','#34d399'],
+                borderWidth: 0,
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: { duration: 500 },
+            indexAxis: 'y',
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { grid: { color: gridColor }, ticks: { color: tickColor }, title: { display: true, text: 'µs (lower = better)', color: tickColor, font: { size: 10 } } },
+                y: { grid: { display: false }, ticks: { color: tickColor } }
+            }
+        }
+    });
+
+    /* ─────────────────────────────────────────────
+       HELPERS
+    ───────────────────────────────────────────── */
+    function now() { return new Date().toLocaleTimeString(); }
+
+    function log(msg, cls = '') {
+        const el = document.getElementById('eventLog');
+        const line = document.createElement('div');
+        line.innerHTML = `<span class="ts">${now()}</span><span class="${cls}">${msg}</span>`;
+        el.prepend(line);
+        while (el.children.length > 20) el.removeChild(el.lastChild);
+    }
+
+    function setConn(ok) {
+        document.getElementById('connDot').className = 'conn-dot' + (ok ? '' : ' err');
+        document.getElementById('connLabel').textContent = ok ? 'connected' : 'disconnected';
+    }
+
+    function classifyPct(pct) {
+        if (pct >= 85) return 'red';
+        if (pct >= 65) return 'amber';
+        return '';
+    }
+
+    /* ─────────────────────────────────────────────
+       DASHBOARD POLL
+    ───────────────────────────────────────────── */
     async function pollDashboard() {
         try {
-            const res = await fetch('diagnostic/dashboard', { cache: 'no-store' });
+            const res = await fetch(DASH_URL, { cache: 'no-store' });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const d = await res.json();
-            memGrid.innerHTML =
-                card('Heap Used', d.heapUsedMB, 'MB') +
-                card('Heap Committed', d.heapCommittedMB, 'MB') +
-                card('Heap Max', d.heapMaxMB, 'MB') +
-                card('Non-Heap Used', d.nonHeapUsedMB, 'MB') +
-                card('Live Threads', d.liveThreadCount, '') +
-                card('Peak Threads', d.peakThreadCount, '') +
-                card('Daemon Threads', d.daemonThreadCount, '') +
-                card('Inventory Cache', d.inventoryCacheSize, 'SKUs');
-            connStatus.textContent = 'connected';
-            connStatus.className = 'status ok';
+
+            const t = now();
+            push(labels, t);
+            push(heapUsed,    d.heapUsedMB);
+            push(heapCommit,  d.heapCommittedMB);
+            push(heapMax,     d.heapMaxMB);
+            push(nonHeapUsed, d.nonHeapUsedMB);
+            push(liveThreads,    d.liveThreadCount);
+            push(daemonThreads,  d.daemonThreadCount);
+            push(peakThreads,    d.peakThreadCount);
+
+            /* KPIs */
+            const pct = d.heapMaxMB > 0 ? Math.round((d.heapUsedMB / d.heapMaxMB) * 100) : 0;
+            const kPct = document.getElementById('kHeapPct');
+            kPct.textContent = pct + '%';
+            kPct.className = 'kpi-val ' + classifyPct(pct);
+            document.getElementById('kHeapPctSub').textContent = `${d.heapUsedMB} / ${d.heapMaxMB} MB`;
+
+            document.getElementById('kHeap').textContent = d.heapUsedMB;
+            document.getElementById('kHeapDelta').textContent = `committed ${d.heapCommittedMB} MB`;
+            document.getElementById('kThreads').textContent = d.liveThreadCount;
+            document.getElementById('kThreadsSub').textContent = `peak ${d.peakThreadCount}`;
+            document.getElementById('kCache').textContent = d.inventoryCacheSize;
+
+            /* Heap timeline */
+            heapChart.data.labels = [...labels];
+            heapChart.data.datasets[0].data = [...heapUsed];
+            heapChart.data.datasets[1].data = [...heapCommit];
+            heapChart.update('none');
+
+            /* Heap doughnut */
+            const free = Math.max(0, d.heapCommittedMB - d.heapUsedMB);
+            const uncommit = Math.max(0, d.heapMaxMB - d.heapCommittedMB);
+            heapDonut.data.datasets[0].data = [d.heapUsedMB, free, uncommit];
+            heapDonut.update('none');
+
+            /* Thread timeline */
+            threadChart.data.labels = [...labels];
+            threadChart.data.datasets[0].data = [...liveThreads];
+            threadChart.data.datasets[1].data = [...daemonThreads];
+            threadChart.data.datasets[2].data = [...peakThreads];
+            threadChart.update('none');
+
+            /* Non-heap timeline */
+            nonHeapChart.data.labels = [...labels];
+            nonHeapChart.data.datasets[0].data = [...nonHeapUsed];
+            nonHeapChart.update('none');
+
+            /* Thread doughnut */
+            const nonDaemon = Math.max(0, d.liveThreadCount - d.daemonThreadCount);
+            threadDonut.data.datasets[0].data = [d.daemonThreadCount, nonDaemon];
+            threadDonut.update('none');
+
+            document.getElementById('lastUpdate').textContent = `updated ${t}`;
+            setConn(true);
+            log(`dash ok — heap ${d.heapUsedMB} MB, threads ${d.liveThreadCount}`, 'ok');
         } catch (e) {
-            connStatus.textContent = 'disconnected';
-            connStatus.className = 'status err';
+            setConn(false);
+            log(`dash error — ${e.message}`, 'warn');
         }
     }
 
-    function jndiRow(label, sample) {
-        if (!sample) return '';
-        const avg = sample.avgElapsedMicros !== null ? sample.avgElapsedMicros : '—';
-        const min = sample.minElapsedMicros !== null ? sample.minElapsedMicros : '—';
-        const max = sample.maxElapsedMicros !== null ? sample.maxElapsedMicros : '—';
-        return '<tr><td>' + label + '</td><td>' + avg + '</td><td>' + min + '</td><td>' + max + '</td><td>' +
-            sample.successCount + '/' + sample.iterations + '</td></tr>';
-    }
-
+    /* ─────────────────────────────────────────────
+       JNDI POLL
+    ───────────────────────────────────────────── */
     async function pollJndi() {
         try {
-            const res = await fetch('diagnostic/jndi', { cache: 'no-store' });
+            const res = await fetch(JNDI_URL, { cache: 'no-store' });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const d = await res.json();
-            jndiBody.innerHTML =
-                jndiRow('jdbc/TechMartPool (InitialContext.lookup)', d.datasourceLookup) +
-                jndiRow('jms/TechMartConnectionFactory (InitialContext.lookup)', d.jmsConnectionFactoryLookup) +
-                jndiRow('InventoryManagerLocal (@EJB injected)', d.injectedEjbCallBaseline);
-            jndiTs.textContent = 'Last sampled: ' + new Date().toLocaleTimeString();
+
+            const rows = [
+                { label: 'jdbc/TechMartPool',           mech: 'InitialContext.lookup()', s: d.datasourceLookup,              color: 'fill-blue'  },
+                { label: 'jms/TechMartConnectionFactory',mech: 'InitialContext.lookup()', s: d.jmsConnectionFactoryLookup,   color: 'fill-blue'  },
+                { label: 'InventoryManagerLocal',        mech: '@EJB injected',           s: d.injectedEjbCallBaseline,       color: 'fill-green' },
+            ];
+
+            const maxAvg = Math.max(...rows.map(r => r.s?.avgElapsedMicros || 0)) || 1;
+
+            const tbody = document.getElementById('jndiBody');
+            tbody.innerHTML = rows.map(r => {
+                const s = r.s;
+                if (!s) return '';
+                const avg = s.avgElapsedMicros ?? '—';
+                const min = s.minElapsedMicros ?? '—';
+                const max = s.maxElapsedMicros ?? '—';
+                const barW = avg !== '—' ? Math.round((avg / maxAvg) * 100) : 0;
+                return `<tr>
+                <td class="td-mono">${r.label}</td>
+                <td style="color:var(--ink-soft)">${r.mech}</td>
+                <td class="td-mono" style="color:var(--blue)">${avg}</td>
+                <td class="td-mono">${min}</td>
+                <td class="td-mono">${max}</td>
+                <td class="td-mono">${s.successCount}/${s.iterations}</td>
+                <td>
+                    <div class="bar-wrap">
+                        <div class="inline-bar">
+                            <div class="inline-fill ${r.color}" style="width:${barW}%"></div>
+                        </div>
+                        <span style="font-family:var(--mono);font-size:.65rem;color:var(--ink-soft)">${barW}%</span>
+                    </div>
+                </td>
+            </tr>`;
+            }).join('');
+
+            /* JNDI bar chart */
+            const avgs = rows.map(r => r.s?.avgElapsedMicros ?? 0);
+            jndiBarChart.data.datasets[0].data = avgs;
+            jndiBarChart.update();
+
+            document.getElementById('jndiTs').textContent = `sampled ${now()}`;
+            log(`jndi ok — ds ${avgs[0]}µs, jms ${avgs[1]}µs, ejb ${avgs[2]}µs`, 'ok');
         } catch (e) {
-            jndiTs.textContent = 'JNDI sample unavailable';
+            log(`jndi error — ${e.message}`, 'warn');
         }
     }
 
+    /* ─────────────────────────────────────────────
+       BOOT
+    ───────────────────────────────────────────── */
     pollDashboard();
     pollJndi();
-    setInterval(pollDashboard, 3000);
-    setInterval(pollJndi, 10000);
+    setInterval(pollDashboard, DASH_MS);
+    setInterval(pollJndi,      JNDI_MS);
 </script>
 </body>
 </html>
